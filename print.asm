@@ -1,6 +1,8 @@
 ; FILE: print.asm
 ; printing procedures
 
+[bits 16]
+
 ; print null-terminated string
 ; in: bx - string pointer
 print_bios:
@@ -37,7 +39,7 @@ print_hex_bios:
   push cx
 
   mov ah, 0x0E
-  ; for some reason byte[cx] doesnt work
+  ; for some reason `mov al, byte[cx]` doesnt work (error: invalid effective address)
   ; so we will instead store the digits pointer in bx
   ; and the number in cx
   mov cx, bx
