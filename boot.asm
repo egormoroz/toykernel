@@ -20,7 +20,7 @@ mov bx, msg_hello_world
 call print_bios
 
 
-; start loading from the 2th sector (currently in 1st)
+; start loading from the 2nd sector (currently in 1st)
 mov bx, 0x0002
 ; load only one sector
 mov cx, 0x0001
@@ -30,20 +30,21 @@ mov dx, 0x7E00
 ; load the sector
 call load_bios
 
-; now we should be able to read from the second sector
-mov bx, loaded_msg
-call print_bios
+; Elevate the cpu to 32-bit mode
+call elevate_bios
 
 ; infinite loop
 jmp $
 
-; ---includes---
+; --- real includes ---
 
-%include "print.asm"
-%include "load.asm"
+%include "real_mode/print.asm"
+%include "real_mode/load.asm"
+%include "real_mode/gdt.asm"
+%include "real_mode/elevate.asm"
 
 
-; ---data storage---
+; --- real data storage ---
 
 msg_hello_world: db `Hello World!\r\n`, 0
 
@@ -57,9 +58,32 @@ times 510 - ($-$$) db 0x00
 dw 0xAA55
 
 
-bootsector_extended:
+; SECOND SECTOR. 32-BIT CODE ONLY.
 
-loaded_msg: db `Now reading from the next sector!`, 0
+bootsector_extended:
+begin_protected:
+
+call clear_protected
+
+mov esi, protected_alert
+call print_protected
+
+jmp $
+
+; --- protected includes ---
+
+%include "protected_mode/print.asm"
+%include "protected_mode/clear.asm"
+
+; --- protected data storage ---
+
+protected_alert: db `Now in 32-bit protected mode.`, 0
+
+vga_start: equ 0x000B8000
+vga_extent: equ 80 * 25 * 2
+vga_end: equ (vga_start + vga_extent)
+
+style_wb: equ 0x0F
 
 ; pad w/ zeros
 times 512 - ($ - bootsector_extended) db 0x00
