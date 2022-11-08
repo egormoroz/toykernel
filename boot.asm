@@ -22,8 +22,8 @@ call print_bios
 
 ; start loading from the 2nd sector (currently in 1st)
 mov bx, 0x0002
-; load only one sector
-mov cx, 0x0001
+; load the 32bit sector and the 64bit sector
+mov cx, 0x0002
 ; the address to store the new sector
 mov dx, 0x7E00
 
@@ -60,13 +60,20 @@ dw 0xAA55
 
 ; SECOND SECTOR. 32-BIT CODE ONLY.
 
+[bits 32]
+
 bootsector_extended:
 begin_protected:
 
-call clear_protected
+call detect_lm_protected
 
-mov esi, protected_alert
+call clear_protected
+mov esi, lm_supported
 call print_protected
+
+call init_pt_protected
+
+call elevate_protected
 
 jmp $
 
@@ -74,17 +81,47 @@ jmp $
 
 %include "protected_mode/print.asm"
 %include "protected_mode/clear.asm"
+%include "protected_mode/detect_lm.asm"
+%include "protected_mode/init_pt.asm"
+%include "protected_mode/gdt.asm"
+%include "protected_mode/elevate.asm"
 
 ; --- protected data storage ---
 
-protected_alert: db `Now in 32-bit protected mode.`, 0
+lm_supported: db `64-bit long mode is supported.`, 0
 
 vga_start: equ 0x000B8000
 vga_extent: equ 80 * 25 * 2
 vga_end: equ (vga_start + vga_extent)
 
+kernel_start: equ 0x00100000 ; kernel is at 1MB
+
 style_wb: equ 0x0F
 
 ; pad w/ zeros
 times 512 - ($ - bootsector_extended) db 0x00
+
+begin_long_mode:
+[bits 64]
+
+mov rdi, style_blue
+call clear_long
+
+mov rsi, long_mode_note
+call print_long
+
+jmp $
+
+; --- long includes ---
+
+%include "long_mode/clear.asm"
+%include "long_mode/print.asm"
+
+; --- long data storage ---
+
+long_mode_note: db `Now running in fully-enabled, 64-bit long mode!`, 0
+style_blue: equ 0x1F
+
+
+times 512 - ($ - begin_long_mode) db 0x00
 
